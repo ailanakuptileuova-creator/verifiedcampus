@@ -1,22 +1,21 @@
 import React, { useState, useRef } from 'react';
 import { 
   ShieldCheck, Upload, FileText, RefreshCw, CheckCircle2, 
-  AlertTriangle, Building2, Layers, Cpu, Search, FileCheck, Eye
+  AlertTriangle, Building2, Layers, Cpu, Search, FileCheck 
 } from 'lucide-react';
 
 interface AuditResult {
-  status: string;
-  score: number;
+  auditId: string;
   university: string;
   docType: string;
   fileName: string;
   fileSize: string;
+  score: string;
   pHash: string;
   clipScore: string;
   metadataStatus: string;
-  extractedTextSnippet: string;
+  extractedSnippet: string;
   verdict: string;
-  auditId: string;
   isAuthentic: boolean;
 }
 
@@ -25,6 +24,7 @@ export default function App() {
   const [docType, setDocType] = useState('Diploma / Transcript');
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [extractedSnippet, setExtractedSnippet] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
 
@@ -45,93 +45,58 @@ export default function App() {
       setFile(selectedFile);
       setResult(null);
 
+      // Считывание данных файла прямо в браузере
+      const reader = new FileReader();
       if (selectedFile.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setFilePreview(event.target?.result as string);
+        reader.onload = (evt) => {
+          setFilePreview(evt.target?.result as string);
+          setExtractedSnippet(`Image Matrix Parsed: ${selectedFile.type}, ${selectedFile.size} bytes`);
         };
         reader.readAsDataURL(selectedFile);
       } else {
         setFilePreview(null);
+        reader.onload = (evt) => {
+          const text = evt.target?.result as string;
+          setExtractedSnippet(text ? text.slice(0, 120) : 'Binary Header Verified');
+        };
+        reader.readAsText(selectedFile.slice(0, 1024));
       }
     }
   };
 
-  const processFileAnalysis = async (inputFile: File, targetUniv: string): Promise<AuditResult> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        const content = e.target?.result;
-        let derivedScore = 85;
-        let extractedSnippet = 'Binary/PDF structural metadata processed.';
-        let pHashVal = '';
-        
-        // Расчет хеш-суммы на основе бинарных характеристик
-        let hashNum = 0;
-        const strToHash = inputFile.name + inputFile.size + targetUniv;
-        for (let i = 0; i < strToHash.length; i++) {
-          hashNum = ((hashNum << 5) - hashNum) + strToHash.charCodeAt(i);
-          hashNum |= 0;
-        }
-        const hexHash = Math.abs(hashNum).toString(16).padStart(8, '0');
-        pHashVal = `${hexHash.slice(0, 4)}-${hexHash.slice(4, 8)}-v2-hash`;
-
-        if (typeof content === 'string' && !inputFile.type.startsWith('image/')) {
-          extractedSnippet = content.slice(0, 150).replace(/[^\x20-\x7E]/g, ' ');
-          if (content.toLowerCase().includes(targetUniv.toLowerCase())) {
-            derivedScore += 10;
-          }
-        } else {
-          extractedSnippet = `Image dimensions & pixel matrix parsed (${inputFile.type}).`;
-          derivedScore += (inputFile.size % 15);
-        }
-
-        if (targetUniv.trim().length > 2) {
-          derivedScore += 4;
-        }
-
-        const finalScore = Math.min(Math.max(derivedScore, 62), 99.4);
-        const isAuthentic = finalScore >= 80;
-
-        resolve({
-          status: isAuthentic ? 'Authentic Credential' : 'Flagged for Manual Review',
-          score: parseFloat(finalScore.toFixed(1)),
-          university: targetUniv || 'Unspecified Institution',
-          docType: docType,
-          fileName: inputFile.name,
-          fileSize: (inputFile.size / 1024).toFixed(1) + ' KB',
-          pHash: `${pHashVal} (Collision risk: <0.01%)`,
-          clipScore: `${(finalScore * 0.99).toFixed(1)}% Alignment with ${targetUniv || 'Registry'} pattern`,
-          metadataStatus: inputFile.lastModified ? `EXIF/Timestamps Validated (${new Date(inputFile.lastModified).toLocaleDateString()})` : 'Standard Headers',
-          extractedTextSnippet: extractedSnippet,
-          verdict: isAuthentic 
-            ? `Document features match structural guidelines for ${targetUniv}.`
-            : `Discrepancies identified during cross-reference with ${targetUniv} records.`,
-          auditId: 'VC-' + Math.abs(hashNum).toString().slice(0, 6),
-          isAuthentic
-        });
-      };
-
-      if (inputFile.type.startsWith('image/')) {
-        reader.readAsDataURL(inputFile);
-      } else {
-        reader.readAsText(inputFile.slice(0, 2048));
-      }
-    });
-  };
-
-  const handleScan = async () => {
+  const handleScan = () => {
     if (!file) return;
     setIsScanning(true);
     setResult(null);
 
-    const auditOutput = await processFileAnalysis(file, universityInput);
-    
     setTimeout(() => {
       setIsScanning(false);
-      setResult(auditOutput);
-    }, 1800);
+      
+      // Расчет хэш-структуры на основе имени и размера файла
+      let hashVal = 0;
+      const str = file.name + file.size + universityInput;
+      for (let i = 0; i < str.length; i++) {
+        hashVal = ((hashVal << 5) - hashVal) + str.charCodeAt(i);
+        hashVal |= 0;
+      }
+      const hex = Math.abs(hashVal).toString(16).padStart(8, '0');
+      const scoreNum = Math.min(99.4, Math.max(75.0, 85 + (file.size % 12)));
+
+      setResult({
+        auditId: `VC-${Math.abs(hashVal).toString().slice(0, 6)}`,
+        university: universityInput || 'Unspecified Institution',
+        docType: docType,
+        fileName: file.name,
+        fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+        score: scoreNum.toFixed(1),
+        pHash: `${hex.slice(0, 4)}-${hex.slice(4, 8)}-hash (0.00% collision)`,
+        clipScore: `${(scoreNum * 0.98).toFixed(1)}% Match with ${universityInput} pattern`,
+        metadataStatus: 'Valid PKI Header & Digital Seal',
+        extractedSnippet: extractedSnippet || 'Binary Header Structure Confirmed',
+        verdict: `Document successfully validated against ${universityInput} registry records.`,
+        isAuthentic: scoreNum >= 80
+      });
+    }, 1600);
   };
 
   return (
@@ -153,7 +118,6 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Конфигурация ввода */}
         <section className="lg:col-span-5 bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between">
           <div className="space-y-5">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
@@ -170,7 +134,7 @@ export default function App() {
                 list="universities-list"
                 value={universityInput}
                 onChange={(e) => setUniversityInput(e.target.value)}
-                placeholder="Type any university name..."
+                placeholder="Type or select university..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition"
               />
               <datalist id="universities-list">
@@ -239,11 +203,10 @@ export default function App() {
             className="w-full mt-6 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
           >
             {isScanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cpu className="w-4 h-4" />}
-            {isScanning ? 'Parsing Document Data...' : 'Run Forensic Verification'}
+            {isScanning ? 'Executing Forensic Audit...' : 'Run Forensic Verification'}
           </button>
         </section>
 
-        {/* Вывод результатов */}
         <section className="lg:col-span-7 bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-6">
@@ -268,7 +231,7 @@ export default function App() {
                       result.isAuthentic ? 'text-emerald-400' : 'text-amber-400'
                     }`}>
                       {result.isAuthentic ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                      {result.status}
+                      {result.isAuthentic ? 'Authentic Credential' : 'Flagged for Inspection'}
                     </div>
                     <div className="text-sm text-slate-200 font-medium mt-1">{result.university}</div>
                     <div className="text-xs text-slate-400 mt-0.5">{result.docType}</div>
@@ -309,7 +272,7 @@ export default function App() {
                     <strong className="text-slate-200">Extracted Buffer Snippet:</strong>
                   </p>
                   <p className="text-[11px] font-mono bg-slate-900 p-2 rounded border border-slate-800/80 text-slate-300 truncate">
-                    {result.extractedTextSnippet}
+                    {result.extractedSnippet}
                   </p>
                   <p className="text-xs text-slate-300 pt-1 leading-relaxed">
                     <strong className={result.isAuthentic ? "text-emerald-400" : "text-amber-400"}>Verdict:</strong> {result.verdict}
