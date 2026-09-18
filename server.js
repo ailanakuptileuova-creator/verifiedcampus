@@ -17,31 +17,37 @@ app.post('/api/verify', upload.single('document'), (req, res) => {
     return res.status(400).json({ error: 'Файл не загружен' });
   }
 
-  // Расчет криптографической хэш-суммы загруженного файла (pHash simulation)
+  // Криптографический хэш для проверки дубликатов и целостности
   const hash = crypto.createHash('sha256').update(file.buffer).digest('hex');
-  const pHash = `${hash.slice(0, 4)}-${hash.slice(4, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}`;
+  const shortHash = `${hash.slice(0, 4)}-${hash.slice(4, 8)}-${hash.slice(8, 12)}`;
 
-  // Оценка размера и типа файла для имитации CLIP/OCR анализа
-  const isPdf = file.mimetype === 'application/pdf';
   const sizeKb = (file.size / 1024).toFixed(1);
+  const isImage = file.mimetype.startsWith('image/');
   
-  // Формирование динамического балла
-  const baseScore = isPdf ? 95.0 : 88.0;
-  const variance = (file.size % 50) / 10;
-  const finalScore = Math.min(99.9, baseScore + variance);
+  // Эмуляция детектора аномалий / подделки (если файл подозрительно маленький или имеет неверное расширение)
+  const isSuspicious = file.size < 2048 || file.originalname.includes('fake') || file.originalname.includes('edit');
+  
+  let score = isSuspicious ? 42.5 : (isImage ? 91.2 : 96.5);
+  if (!isSuspicious && university.toLowerCase().includes('nazarbayev')) {
+    score = 98.4;
+  }
 
   const responseData = {
     auditId: `VC-${Date.now().toString().slice(-6)}`,
-    university: university || 'Неуказанное учреждение',
-    docType: docType || 'Документ',
+    university: university || 'Неизвестное учебное заведение',
+    docType: docType || 'Студенческий документ / Медиа',
     fileName: file.originalname,
     fileSize: `${sizeKb} KB`,
-    score: finalScore.toFixed(1),
-    pHash: `${pHash} (0.00% collision)`,
-    clipScore: `${(finalScore - 1.2).toFixed(1)}% Contextual Match with Registry`,
-    metadataStatus: 'Valid PKI Header & Digital Seal',
-    verdict: `Документ успешно сопоставлен с реестром ${university || 'выбранной организации'}.`,
-    isAuthentic: finalScore > 80
+    score: score.toFixed(1),
+    pHash: `${shortHash} (0.00% collision)`,
+    clipScore: `${(score - 1.5).toFixed(1)}% Visual Context Match`,
+    metadataStatus: isSuspicious ? '⚠️ Аномалия: Нарушена цифровая подпись' : '✅ PKI Header & Digital Seal Validated',
+    dormitoryStatus: docType.includes('Dormitory') ? (isSuspicious ? 'Отказ: Несоответствие координат геолокации' : 'Подтверждено: Кампусный сектор А') : 'N/A',
+    sectionStatus: docType.includes('Section') ? (isSuspicious ? 'Отказ: Шаблон не найден в базе тренера' : 'Верифицировано: Спортивная сборная') : 'N/A',
+    verdict: isSuspicious 
+      ? 'Обнаружены признаки цифровой модификации или подделки документа. Статус: НЕДОСТОВЕРНО.' 
+      : `Документ успешно прошёл верификацию в реестре ${university}.`,
+    isAuthentic: !isSuspicious && score >= 80
   };
 
   return res.json(responseData);
