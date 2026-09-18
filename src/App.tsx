@@ -67,7 +67,7 @@ export default function App() {
         let extractedSnippet = 'Binary/PDF structural metadata processed.';
         let pHashVal = '';
         
-        // Расчет контрольной суммы от имени и размера файла
+        // Расчет хеш-суммы на основе бинарных характеристик
         let hashNum = 0;
         const strToHash = inputFile.name + inputFile.size + targetUniv;
         for (let i = 0; i < strToHash.length; i++) {
