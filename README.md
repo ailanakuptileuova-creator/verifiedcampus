@@ -25,3 +25,6 @@ Verified Campus is an automated authenticity verification system designed for hi
    ```bash
    git clone [https://github.com/ailanakuptileuova-creator/verifiedcampus.git](https://github.com/ailanakuptileuova-creator/verifiedcampus.git)
    cd verifiedcampus
+
+   ###  Ссылки на проект
+* **Live Demo (Vercel):** https://verifiedcampus-v7cv.vercel.app/
