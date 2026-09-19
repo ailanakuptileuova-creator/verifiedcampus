@@ -28,3 +28,11 @@ Verified Campus is an automated authenticity verification system designed for hi
 
    ###  Ссылки на проект
 * **Live Demo (Vercel):** https://verifiedcampus-v7cv.vercel.app/
+
+Презентация:
+https://drive.google.com/file/d/1oi2EBtcd-ZyyfRKNtaW2K-5a2l422Ued/view?usp=drivesdk
+
+
+
+Демо-видео:
+https://drive.google.com/file/d/1cyqS02XlC53NhIPc_Rvj48KVhC0c1xdn/view?usp=drivesdk
